@@ -8,9 +8,10 @@ Measurement equation used (Stokes I, per row and channel):
       G_k   = exp( -2 pi^2 (nu/c)^2 (C_ee u^2 + 2 C_en u v + C_nn v^2) )
               where C is the component's (East, North) covariance (pinpoint.shapes),
               i.e. the exact Fourier transform of the image-plane Gaussian.
-      sign  = -1 by default (the CASA / wsclean convention). Exposed as an option only
-              so it can be checked on real data (see VALIDATION.md); do not change it
-              lightly.
+      sign  = +1 by default: the convention used for Measurement Set data by CASA, MeqTrees
+              and codex-africanus (whose docs call e^{+2 pi i} the 'casa' convention).
+              Confirmed against africanus' wsclean_predict in tests/test_optional_africanus.py.
+              Exposed as an option only so it can be checked on real data (VALIDATION.md).
 
 Optional decorrelation ("smearing") factors, both real and multiplicative:
   frequency: sinc( tau * |dnu| / c )                         dnu = channel width
@@ -88,7 +89,7 @@ def _np_sinc(x):
 
 
 def predict_reference(uvw, freqs, comps: ComponentArrays, *, chan_width=None, interval=None, dec0=0.0,
-                      sign=-1.0, freq_smearing=False, time_smearing=False):
+                      sign=1.0, freq_smearing=False, time_smearing=False):
     """Straightforward vectorised implementation. Returns complex128 (nrow, nchan)."""
     uvw = np.asarray(uvw, dtype=np.float64)
     freqs = np.asarray(freqs, dtype=np.float64)
@@ -224,7 +225,7 @@ def is_uniform(freqs, rtol=1e-9):
     return bool(np.all(np.abs(d - d[0]) <= rtol * np.abs(freqs).max()) and d[0] != 0)
 
 
-def predict_loop(uvw, freqs, comps: ComponentArrays, *, chan_width=None, interval=None, dec0=0.0, sign=-1.0,
+def predict_loop(uvw, freqs, comps: ComponentArrays, *, chan_width=None, interval=None, dec0=0.0, sign=1.0,
                  freq_smearing=False, time_smearing=False, reseed=64, force_direct=False):
     uvw = np.ascontiguousarray(uvw, dtype=np.float64)
     freqs = np.ascontiguousarray(freqs, dtype=np.float64)

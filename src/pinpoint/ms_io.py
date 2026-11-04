@@ -63,7 +63,7 @@ def _chunks(rows, n):
 
 
 def predict_into_ms(ms, skymodel, *, default_column="MODEL_DATA", override_column=None, mode="overwrite",
-                    field_ids=None, chunk_rows=50_000, backend="auto", sign=-1.0, freq_smearing=False,
+                    field_ids=None, chunk_rows=50_000, backend="auto", sign=1.0, freq_smearing=False,
                     time_smearing=False, allow_data_column=False, log=print) -> PredictReport:
     if mode not in MODES:
         raise ValueError(f"mode must be one of {MODES}")

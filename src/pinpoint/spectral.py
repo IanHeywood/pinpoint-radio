@@ -1,15 +1,19 @@
 """Spectral models.
 
-Two forms, matching the conventions of wsclean source lists (and DP3/codex-africanus):
+Two forms, matching the conventions documented for wsclean source lists:
 
   kind = "pol"     ordinary polynomial
       S(nu) = c0 + c1 x + c2 x^2 + ...,      x = nu/nu0 - 1
 
-  kind = "logpol"  logarithmic polynomial (log10, as wsclean's LogarithmicSI)
+  kind = "logpol"  logarithmic polynomial (base-10 logs, as wsclean documents LogarithmicSI)
       S(nu) = c0 * 10^(c1 y + c2 y^2 + ...),   y = log10(nu/nu0)
       i.e. c1 is the usual spectral index, c2 the curvature.
 
 coeffs[0] is always the flux density (Jy) at the reference frequency nu0.
+
+Note: not every package uses base 10. codex-africanus uses natural logs, so its
+curvature terms relate to ours by c_i(ln) = c_i(log10) / ln(10)^(i-1). The spectral
+index c1 is the same in both.
 """
 
 from __future__ import annotations

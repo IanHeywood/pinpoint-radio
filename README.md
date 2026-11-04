@@ -68,15 +68,18 @@ Lines starting with `-` are exclusions.
 `model.yaml` is plain YAML in human units (degrees, arcsec, Hz, Jy), with 1-sigma errors.
 You can read and edit it. Spectra use the wsclean conventions:
 - `logpol`: S = c0 · 10^(c1·y + c2·y² …), with y = log10(ν/ν0), so c1 is the spectral index.
+  This uses base-10 logs, as wsclean documents. codex-africanus uses natural logs, so its
+  curvature coefficients differ by powers of ln 10.
 - `pol`: S = c0 + c1·x + c2·x² …, with x = ν/ν0 − 1.
 
 ## Conventions (all in one place)
 
 - **(l, m):** l points East, m points North, using the SIN projection about the MS
   `PHASE_DIR` of the field.
-- **Phase:** V = Σ S(ν) · G · exp(−2πi (ν/c)(u l + v m + w(n−1))), the CASA/wsclean
-  sign. `--phase-sign` exists only so it can be checked on your data
-  (VALIDATION.md step 2).
+- **Phase:** V = Σ S(ν) · G · exp(+2πi (ν/c)(u l + v m + w(n−1))), the sign used for
+  Measurement Set data by CASA, MeqTrees and codex-africanus. This agrees with africanus to
+  1e-9 in CI. `--phase-sign` exists only so it can be checked on your data (VALIDATION.md
+  step 2).
 - **Gaussians:** FWHM major and minor axes, with PA measured North through East (the same
   as BPA in FITS headers). G is the exact Fourier transform of the image-plane Gaussian.
 - **Correlations:** XX = YY = RR = LL = I, with zero cross-hands. This follows the MS

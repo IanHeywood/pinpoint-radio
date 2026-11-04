@@ -35,8 +35,8 @@ pinpoint compare fit1.yaml fit2.yaml
 - **Expected:** offsets well below 1/100 of a pixel, a flux ratio within 1e-3, and the same
   PA.
 - **Position mirrored about the phase centre:** the phase sign is flipped. Re-run predict
-  with `--phase-sign +1`, and please report it, because that would be a bug in the
-  convention handling.
+  with `--phase-sign -1`, and please report it, because that would contradict the CASA
+  convention confirmed against africanus.
 - **Only one axis flipped:** l/m orientation is wrong.
 
 ## 3. Is the fit as good as its error bars?

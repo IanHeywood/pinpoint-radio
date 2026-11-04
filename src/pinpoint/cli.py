@@ -129,8 +129,8 @@ def build_parser():
     pr.add_argument("--backend", choices=["auto", "numba", "numpy"], default="auto")
     pr.add_argument("--freq-smearing", action="store_true", help="apply channel-width decorrelation")
     pr.add_argument("--time-smearing", action="store_true", help="apply integration-time decorrelation")
-    pr.add_argument("--phase-sign", type=float, choices=[-1.0, 1.0], default=-1.0,
-                    help="DFT sign convention; leave at -1 unless VALIDATION.md step 2 says otherwise")
+    pr.add_argument("--phase-sign", type=float, choices=[-1.0, 1.0], default=1.0,
+                    help="DFT sign convention (+1 = CASA/MS convention); leave at +1 unless VALIDATION.md step 2 says otherwise")
     pr.add_argument("--allow-data-column", action="store_true", help="permit writing into DATA / CORRECTED_DATA")
     pr.set_defaults(func=_cmd_predict)
 

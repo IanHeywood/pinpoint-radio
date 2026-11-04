@@ -2,7 +2,7 @@
 
 What these tests establish:
   * a source at the phase centre gives V = S(nu) on every baseline;
-  * an offset point source gives exactly S exp(-2 pi i nu/c (ul + vm + w(n-1)));
+  * an offset point source gives exactly S exp(+2 pi i nu/c (ul + vm + w(n-1))) (CASA/MS sign);
   * the Gaussian taper equals a brute-force numerical Fourier transform of the
     image-plane Gaussian (so image-plane PA and visibility-plane PA agree);
   * the fast recurrence kernel equals the direct reference to ~1e-12 across
@@ -55,7 +55,7 @@ def test_offset_point_analytic():
     V = predict_reference(uvw, FREQS, ca)
     l, m, n = radec_to_lmn(c.ra, c.dec, RA0, DEC0)
     tau = uvw[:, 0] * l + uvw[:, 1] * m + uvw[:, 2] * (n - 1)
-    expect = c.spectrum(FREQS)[None, :] * np.exp(-2j * np.pi * tau[:, None] * FREQS[None, :] / C)
+    expect = c.spectrum(FREQS)[None, :] * np.exp(2j * np.pi * tau[:, None] * FREQS[None, :] / C)
     assert np.max(np.abs(V - expect)) < 1e-9
 
 
@@ -79,7 +79,7 @@ def test_gaussian_matches_numerical_fourier_transform():
     ca = prepare_components([c], RA0, DEC0, nu)
     V = predict_reference(uvw, nu, ca)[:, 0]
     k = uv / lam
-    Vnum = np.array([np.sum(I * np.exp(-2j * np.pi * (ku * E + kv * N))) for ku, kv in k])
+    Vnum = np.array([np.sum(I * np.exp(2j * np.pi * (ku * E + kv * N))) for ku, kv in k])
     assert np.max(np.abs(V - Vnum)) < 1e-6
     # and it is genuinely non-trivial (resolved on these baselines)
     assert np.min(np.abs(V)) < 0.5

@@ -42,8 +42,10 @@ This page maps the pipeline stages to those files.
 | `test_optional_numba.py` | numba | The compiled kernel equals the numpy reference; prints throughput |
 | `test_optional_africanus.py` | codex-africanus | Independent check of phase sign, l/m orientation, w-term, spectral polynomials and Gaussian PA against another widely used DFT |
 
-**Status of this draft.** It was written in a sandbox without network access to PyPI.
-The 70 core tests ran and passed there, with numpy, scipy and pyyaml only. The four
-optional files above were written but **have not been run yet**. Their first run on your
-machine is the real check of the astropy, casacore and numba adapters. If any of them
-fails, the failure message says which convention to suspect.
+**Status.** The first CI run (GitHub Actions, Python 3.12) passed every astropy,
+python-casacore and numba test. The numba kernel ran at about 313 M
+component-visibilities/s. The africanus cross-check failed, and that failure was the
+test doing its job: pinpoint's original phase sign was the opposite of the convention
+used for MS data (africanus' 'casa' convention, also used by MeqTrees). The default is
+now +1. The run also showed that africanus uses natural logs for log-polynomial
+curvature, while wsclean documents base 10; the test now converts between the two.
