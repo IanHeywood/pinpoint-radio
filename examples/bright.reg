@@ -1,0 +1,7 @@
+# Region file format: DS9 version 4.1
+# One region per problem source. The text tag says what to fit and where to predict it.
+global color=green width=1
+fk5
+circle(04:37:04.375,+29:40:13.82,20")  # text={point+gauss col=DIR1_DATA name=3C123}
+# A faint neighbour inside the region that shouldn't be part of the fit:
+-circle(04:37:05.100,+29:40:20.00,3")
