@@ -57,6 +57,15 @@ class PredictReport:
                 f"  (total {tot:.1f}s)")
 
 
+def integration_times(ms, rows):
+    """Per-row integration time (s): EXPOSURE, falling back to INTERVAL where EXPOSURE is <= 0."""
+    exp = np.asarray(ms.read("EXPOSURE", rows), dtype=np.float64)
+    if np.any(exp <= 0) and ms.has_column("INTERVAL"):
+        itv = np.asarray(ms.read("INTERVAL", rows), dtype=np.float64)
+        exp = np.where(exp > 0, exp, itv)
+    return exp
+
+
 def _chunks(rows, n):
     for s in range(0, len(rows), n):
         yield rows[s:s + n]
@@ -110,7 +119,7 @@ def predict_into_ms(ms, skymodel, *, default_column="MODEL_DATA", override_colum
                 for ch in _chunks(rows, chunk_rows):
                     t0 = time.perf_counter()
                     uvw = ms.read("UVW", ch)
-                    interval = ms.read("EXPOSURE", ch) if time_smearing else None
+                    interval = integration_times(ms, ch) if time_smearing else None
                     existing = None
                     if mode != "overwrite" and not created:
                         existing = ms.read(col, ch)

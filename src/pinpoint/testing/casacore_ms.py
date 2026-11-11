@@ -26,7 +26,9 @@ def write_casacore_ms(path, mem):  # pragma: no cover - needs python-casacore
     for r in range(n):
         t.putcell("DATA", r, mem.data_cols["DATA"][r])
         shp = mem.data_cols["DATA"][r].shape
-        t.putcell("FLAG", r, np.zeros(shp, dtype=bool))
+        t.putcell("FLAG", r, np.asarray(mem.data_cols["FLAG"][r], dtype=bool))
+        t.putcell("WEIGHT", r, np.asarray(mem.data_cols["WEIGHT"][r], dtype=np.float32))
+        t.putcell("SIGMA", r, np.ones(shp[1], dtype=np.float32))
     t.close()
 
     with table(f"{path}/SPECTRAL_WINDOW", readonly=False, ack=False) as sw:

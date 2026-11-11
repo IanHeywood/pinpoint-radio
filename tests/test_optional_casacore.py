@@ -73,3 +73,27 @@ def test_add_mode_on_real_table(tmp_path):
     with table(path, ack=False) as t:
         for r in range(0, t.nrows(), 50):
             assert np.allclose(t.getcell("DIR1_DATA", r), 2 * mem.data_cols["DIR1_DATA"][r], atol=1e-5)
+
+
+def test_fit_uv_matches_inmemory(tmp_path):
+    """fit-uv reads a real MS (FLAG, WEIGHT, EXPOSURE via casacore) exactly as the in-memory one."""
+    from pinpoint.coords import lmn_to_radec
+    from pinpoint.fit_uv import UVFitOptions, fit_uv
+    from pinpoint.testing.synth_ms import fill_column, make_emerlin_like_ms
+
+    mem = make_emerlin_like_ms(ntime=12)
+    ra0, dec0 = mem.fields[0]
+    ra, dec = lmn_to_radec(150 * ARCSEC, -100 * ARCSEC, ra0, dec0)
+    truth = Component("b", "point", float(ra), float(dec), Spectrum("logpol", 1.5e9, [0.2, -0.3]))
+    fill_column(mem, [truth], "DATA", sigma=0.05, rng=np.random.default_rng(1))
+    mem.data_cols["FLAG"][3][:] = True
+    path = write_casacore_ms(tmp_path / "e.ms", mem)
+    sra, sdec = lmn_to_radec(30e-3 * ARCSEC, 0.0, truth.ra, truth.dec)
+    start = SkyModel([Source("b", [Component("b_c0", "point", float(sra), float(sdec),
+                                             Spectrum("logpol", 1.5e9, [0.12, 0.0]))], "DIR1_DATA")])
+    o = UVFitOptions(data_column="DATA", subtract_column=None)
+    a = fit_uv(mem, start, o, log=lambda *x: None).model.sources[0].components[0]
+    with CasacoreMS(path, readonly=True) as ms:
+        b = fit_uv(ms, start, o, log=lambda *x: None).model.sources[0].components[0]
+    assert abs(a.ra - b.ra) < 1e-5 * ARCSEC and abs(a.dec - b.dec) < 1e-5 * ARCSEC
+    assert np.isclose(a.spectrum.coeffs[0], b.spectrum.coeffs[0], rtol=1e-5)

@@ -16,6 +16,7 @@ This page maps the pipeline stages to those files.
 | Image fitting | `fitting.py` | `test_fitting.py` | Off-grid source recovered to ~1/1000 pixel; position errors honest under beam-correlated noise; Gaussian size and PA recovered at 0°, 60° and 135°; point + Gaussian blend; background; per-band positions |
 | DFT predict | `predict.py` | `test_predict.py` | Analytic point and Gaussian visibilities; Gaussian equals a numerical Fourier transform of the image-plane Gaussian; fast recurrence kernel equals direct evaluation to 1e-11 over 1500 channels (ascending, descending, irregular); smearing equals brute-force averaging; correlation mapping |
 | MS writing | `ms_io.py` | `test_ms_io.py` | Correct values in every spectral window and correlation setup; add and subtract modes; per-source columns; DATA protected and untouched; zero-fill of other fields; results independent of chunk size |
+| Visibility fit | `fit_uv.py` | `test_fit_uv.py` | On e-MERLIN-like smeared data: recovers position, flux and spectrum from a start 30 mas and 40% off; honest errors (pull test); leaving smearing out biases the flux by many sigma; Gaussian shape recovered; the smearing-alignment warning fires when it should (including coincident real structure) and not otherwise; flagged data ignored; sub-sampling consistent; rest-of-field subtraction; fixed parameters stay fixed; data/model diagnostic ≈ 1 |
 | Masking, compare, CLI | `masking.py`, `compare.py`, `cli.py` | `test_masking_compare_cli.py` | Only in-region pixels are zeroed; known offsets reported correctly; every sub-command parses |
 | End to end | everything | `test_end_to_end.py` | Images → fit → file → MS reproduces the true visibilities to 1e-6 of the flux; a pixel-snapped model is off by ~38% |
 
@@ -38,7 +39,7 @@ This page maps the pipeline stages to those files.
 | File | Needs | Checks |
 |---|---|---|
 | `test_optional_astropy.py` | astropy | pinpoint's SIN projection equals astropy.wcs to < 1 µas over a 2° image; reading wsclean-style 4-D FITS (frequency, beam, residual-image noise, MFS ignored); fitting through FITS; masking FITS model images |
-| `test_optional_casacore.py` | python-casacore | Real-MS metadata; predicting into a real MS gives bit-identical results to the in-memory MS, so `test_ms_io.py` carries over; column creation; DATA untouched |
+| `test_optional_casacore.py` | python-casacore | Real-MS metadata; predicting into a real MS gives bit-identical results to the in-memory MS, so `test_ms_io.py` carries over; column creation; DATA untouched; `fit-uv` reads a real MS (FLAG, WEIGHT, EXPOSURE) exactly as it reads the in-memory one |
 | `test_optional_numba.py` | numba | The compiled kernel equals the numpy reference; prints throughput |
 | `test_optional_africanus.py` | codex-africanus | Independent check of phase sign, l/m orientation, w-term, spectral polynomials and Gaussian PA against another widely used DFT |
 

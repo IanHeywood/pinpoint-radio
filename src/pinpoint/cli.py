@@ -2,6 +2,7 @@
 
   pinpoint fit      sub-band images + region file   -> sky-model YAML (+ report, plots)
   pinpoint show     sky-model YAML                  -> readable summary
+  pinpoint fit-uv   sky-model YAML + MS             -> refined sky-model YAML (fit to visibilities, with smearing)
   pinpoint predict  sky-model YAML + MS             -> model column(s)
   pinpoint mask     model images + region file      -> model images with the sources zeroed
   pinpoint compare  two sky-model YAMLs             -> position / flux / shape differences
@@ -73,9 +74,27 @@ def _cmd_predict(a):
     with CasacoreMS(a.ms, readonly=False) as ms:
         rep = predict_into_ms(ms, m, default_column=a.default_column, override_column=a.column, mode=a.mode,
                               field_ids=fields, chunk_rows=a.chunk_rows, backend=a.backend, sign=a.phase_sign,
-                              freq_smearing=a.freq_smearing, time_smearing=a.time_smearing,
+                              freq_smearing=not a.no_freq_smearing, time_smearing=not a.no_time_smearing,
                               allow_data_column=a.allow_data_column)
     print(rep.summary())
+
+
+def _cmd_fit_uv(a):
+    from .fit_uv import UVFitOptions, fit_uv, format_uv_report
+    from .ms_io import CasacoreMS
+    from .skymodel import SkyModel
+
+    start = SkyModel.load(a.model)
+    o = UVFitOptions(data_column=a.data_column, subtract_column=None if a.no_subtract else a.subtract_column,
+                     field_id=a.field, chan_step=a.chan_step, row_step=a.row_step,
+                     time_smearing=not a.no_time_smearing, freq_smearing=not a.no_freq_smearing,
+                     fit_position=not a.fix_position, fit_spectrum=not a.fix_spectrum, fit_shape=not a.fix_shape,
+                     nterms=a.nterms, max_iter=a.max_iter, backend=a.backend, sign=a.phase_sign)
+    with CasacoreMS(a.ms, readonly=True) as ms:
+        res = fit_uv(ms, start, o)
+    print(format_uv_report(res))
+    res.model.save(a.out)
+    print(f"wrote {a.out}")
 
 
 def _cmd_mask(a):
@@ -127,12 +146,35 @@ def build_parser():
     pr.add_argument("--field", type=int, default=None, help="FIELD_ID (required if the MS has several)")
     pr.add_argument("--chunk-rows", type=int, default=50_000)
     pr.add_argument("--backend", choices=["auto", "numba", "numpy"], default="auto")
-    pr.add_argument("--freq-smearing", action="store_true", help="apply channel-width decorrelation")
-    pr.add_argument("--time-smearing", action="store_true", help="apply integration-time decorrelation")
+    pr.add_argument("--no-freq-smearing", action="store_true", help="do NOT apply channel-width decorrelation")
+    pr.add_argument("--no-time-smearing", action="store_true", help="do NOT apply integration-time decorrelation")
+    pr.add_argument("--freq-smearing", "--time-smearing", action="store_true", dest="_legacy_smear",
+                    help=argparse.SUPPRESS)  # accepted for old scripts; smearing is now on by default
     pr.add_argument("--phase-sign", type=float, choices=[-1.0, 1.0], default=1.0,
                     help="DFT sign convention (+1 = CASA/MS convention); leave at +1 unless VALIDATION.md step 2 says otherwise")
     pr.add_argument("--allow-data-column", action="store_true", help="permit writing into DATA / CORRECTED_DATA")
     pr.set_defaults(func=_cmd_predict)
+
+    fu = sub.add_parser("fit-uv", help="refine a sky model against the visibilities (smearing modelled)")
+    fu.add_argument("--model", required=True, help="starting sky-model YAML (e.g. from `pinpoint fit`)")
+    fu.add_argument("--ms", required=True)
+    fu.add_argument("--out", required=True, help="output sky-model YAML")
+    fu.add_argument("--field", type=int, default=None, help="FIELD_ID (required if the MS has several)")
+    fu.add_argument("--data-column", default="CORRECTED_DATA")
+    fu.add_argument("--subtract-column", default="MODEL_DATA", help="rest-of-field model to subtract first")
+    fu.add_argument("--no-subtract", action="store_true", help="fit the data column as-is")
+    fu.add_argument("--chan-step", type=int, default=1, help="use every Nth channel (exact; faster)")
+    fu.add_argument("--row-step", type=int, default=1, help="use every Nth row (exact; faster)")
+    fu.add_argument("--no-time-smearing", action="store_true")
+    fu.add_argument("--no-freq-smearing", action="store_true")
+    fu.add_argument("--fix-position", action="store_true")
+    fu.add_argument("--fix-spectrum", action="store_true")
+    fu.add_argument("--fix-shape", action="store_true")
+    fu.add_argument("--nterms", type=int, default=None, help="change the number of spectral terms")
+    fu.add_argument("--max-iter", type=int, default=50)
+    fu.add_argument("--backend", choices=["auto", "numba", "numpy"], default="auto")
+    fu.add_argument("--phase-sign", type=float, choices=[-1.0, 1.0], default=1.0, help=argparse.SUPPRESS)
+    fu.set_defaults(func=_cmd_fit_uv)
 
     mk = sub.add_parser("mask", help="zero region pixels in wsclean model images")
     mk.add_argument("--images", required=True, help="wsclean -name prefix (reads PREFIX-NNNN-model.fits)")

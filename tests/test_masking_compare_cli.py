@@ -50,7 +50,12 @@ def test_compare_reports_offsets():
 def test_cli_parses_all_commands():
     p = build_parser()
     p.parse_args(["fit", "--images", "x", "--regions", "r", "--out", "o"])
-    p.parse_args(["predict", "--model", "m", "--ms", "x.ms", "--mode", "add", "--time-smearing"])
+    a = p.parse_args(["predict", "--model", "m", "--ms", "x.ms", "--mode", "add"])
+    assert not a.no_time_smearing and not a.no_freq_smearing  # smearing ON by default
+    p.parse_args(["predict", "--model", "m", "--ms", "x.ms", "--time-smearing"])  # legacy flag still accepted
+    a = p.parse_args(["fit-uv", "--model", "m", "--ms", "x.ms", "--out", "o.yaml", "--field", "2",
+                      "--chan-step", "4", "--no-subtract"])
+    assert a.field == 2 and a.chan_step == 4 and a.no_subtract and a.data_column == "CORRECTED_DATA"
     p.parse_args(["mask", "--images", "x", "--regions", "r", "--out-prefix", "y"])
     p.parse_args(["compare", "a", "b"])
     p.parse_args(["show", "a"])

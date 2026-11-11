@@ -47,6 +47,18 @@ pinpoint compare fit1.yaml fit2.yaml
 - Look at the fit-residual panels in the PNGs. Structure left at the source position means
   the component model needs another component, e.g. `point+gauss`.
 
+## 3b. For smeared sources: does the smearing model hold on your data?
+
+1. Run `scripts/smearing_check.py` to see how strongly the source is decorrelated.
+2. If the long-baseline factors are well below about 0.9, run `pinpoint fit-uv`. Check that
+   the data/model column of its amplitude table stays near 1 at every baseline length. A
+   steady trend away from 1 on the longest baselines means the smearing model doesn't match
+   how the data were averaged, e.g. sub-integrations flagged before averaging, or an
+   `EXPOSURE` that doesn't reflect the real averaging.
+3. Compare the image-plane and visibility fits with `pinpoint compare model.yaml model-uv.yaml`.
+   The position should agree to a small fraction of the beam. The flux will rise by roughly
+   the amount the smearing hid.
+
 ## 4. The actual goal: dynamic range after peeling
 
 1. Run QuartiCal twice. The first run is a direction-independent solve against the full
