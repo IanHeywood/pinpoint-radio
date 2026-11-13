@@ -102,7 +102,9 @@ def _cmd_mask(a):
     from .regions import load_regions
 
     sources, _ = load_regions(a.regions)
-    mask_model_images(a.images, sources, a.out_prefix)
+    if not a.in_place and not a.out_prefix:
+        sys.exit("give --out-prefix, or --in-place to modify the input model images")
+    mask_model_images(a.images, sources, a.out_prefix, in_place=a.in_place)
 
 
 def _cmd_compare(a):
@@ -179,7 +181,8 @@ def build_parser():
     mk = sub.add_parser("mask", help="zero region pixels in wsclean model images")
     mk.add_argument("--images", required=True, help="wsclean -name prefix (reads PREFIX-NNNN-model.fits)")
     mk.add_argument("--regions", required=True)
-    mk.add_argument("--out-prefix", required=True)
+    mk.add_argument("--out-prefix", default=None, help="write masked copies as OUT_PREFIX-NNNN-model.fits")
+    mk.add_argument("--in-place", action="store_true", help="modify the input model images instead of copying")
     mk.set_defaults(func=_cmd_mask)
 
     c = sub.add_parser("compare", help="compare two sky-model files")

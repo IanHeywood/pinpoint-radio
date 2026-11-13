@@ -104,3 +104,17 @@ def test_mask_model_fits(tmp_path):
     assert [p.split("/")[-1] for p in out] == ["masked-0000-model.fits", "masked-0001-model.fits"]
     d = np.squeeze(fits.getdata(out[0]))
     assert d[48, 48] == 0.0 and d[10, 10] == 0.5
+    orig = np.squeeze(fits.getdata(prefix + "-0000-model.fits"))
+    assert orig[48, 48] == 1.0  # input left untouched
+    assert fits.getheader(out[0])["NAXIS"] == 4 and fits.getheader(out[0])["BMAJ"] > 0  # header intact
+
+
+def test_mask_model_fits_in_place(tmp_path):
+    freqs = np.linspace(0.9e9, 1.6e9, 2)
+    ims = make_subbands([], freqs, ra0=RA0, dec0=DEC0, npix=96, rms=1e-6)
+    prefix = _write_wsclean_set(tmp_path, ims)
+    regs = parse_region_string('fk5\ncircle(150,-30,5")')
+    out = mask_model_images(prefix, regs, in_place=True, log=lambda *a: None)
+    assert out[0] == prefix + "-0000-model.fits"
+    d = np.squeeze(fits.getdata(out[0]))
+    assert d[48, 48] == 0.0 and d[10, 10] == 0.5
