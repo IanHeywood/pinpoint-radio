@@ -83,6 +83,7 @@ class SourceResult:
     data: np.ndarray = field(repr=False)  # (nb, ny, nx)
     model: np.ndarray = field(repr=False)
     error_scale: float = 1.0
+    skipped_bands: list = field(default_factory=list)  # [(freq Hz, reason)] bands left out of this fit
 
     def to_source(self) -> Source:
         comps = []
@@ -236,12 +237,26 @@ def fit_region(images: list[SubbandImage], region, exclusions=(), opts: FitOptio
     cut = region_cutout(region, geom, shape, exclusions)
     if cut.mask.sum() < 10:
         raise ValueError(f"region {region.name!r}: only {cut.mask.sum()} usable pixels")
+    # Second line of defence against flagged sub-bands: judge each band on the region cutout
+    # itself (a band can be blank here even if the loader let it through).
+    from .images import subband_problem
+    skipped = []
+    kept = []
+    for im in images:
+        why = subband_problem(im.data[cut.ys, cut.xs][cut.mask], im.noise, im.beam)
+        if why:
+            skipped.append((im.freq, why))
+        else:
+            kept.append(im)
+    if not kept:
+        raise ValueError(f"region {region.name!r}: no usable sub-bands ({len(images)} all blank/flagged here)")
+    images = kept
     data = np.stack([im.data[cut.ys, cut.xs] for im in images])
     finite = np.all(np.isfinite(data), axis=0)
     mask = cut.mask & finite
+    if mask.sum() < 10:
+        raise ValueError(f"region {region.name!r}: only {mask.sum()} pixels are finite in every usable sub-band")
     sig = np.array([im.noise for im in images], dtype=np.float64)
-    if not np.all(np.isfinite(sig)) or np.any(sig <= 0):
-        raise ValueError("invalid image noise estimates")
     freqs = np.array([im.freq for im in images])
     de_as, dn_as = cut.de / ARCSEC, cut.dn / ARCSEC
     beams_cov_as = np.stack([shape_to_cov(im.beam[0] / ARCSEC, im.beam[1] / ARCSEC, im.beam[2]) for im in images])
@@ -307,4 +322,5 @@ def fit_region(images: list[SubbandImage], region, exclusions=(), opts: FitOptio
                 comps[k].band_offsets_arcsec[b] = pb[2 * k:2 * k + 2] - x_joint[2 * k:2 * k + 2]
                 comps[k].band_offsets_err[b] = np.sqrt(np.clip(np.diag(covb)[2 * k:2 * k + 2], 0, None))
 
-    return SourceResult(region.name, region.column, comps, freqs, chi2_red, int(mask.sum()), cut, data, model, scale)
+    return SourceResult(region.name, region.column, comps, freqs, chi2_red, int(mask.sum()), cut, data, model, scale,
+                        skipped)

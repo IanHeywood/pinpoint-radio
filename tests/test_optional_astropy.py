@@ -95,6 +95,25 @@ def test_fits_round_trip_and_fit(tmp_path):
     assert abs(l) < 2e-3 * ARCSEC and abs(m) < 2e-3 * ARCSEC  # float32 FITS limits this
 
 
+def test_loader_skips_fully_flagged_subbands(tmp_path):
+    freqs = np.linspace(0.9e9, 1.6e9, 4)
+    ra, dec = RA0 - 0.37 * ARCSEC / np.cos(DEC0), DEC0 - 0.21 * ARCSEC
+    ims = make_subbands([TrueComponent(ra, dec, lambda nu: 2.0 * (nu / 1.25e9) ** -0.7)], freqs,
+                        ra0=RA0, dec0=DEC0, npix=96, rms=1e-6)
+    prefix = _write_wsclean_set(tmp_path, ims)
+    # band 1: all zeros (image and residual), beam keywords zero, as wsclean writes for empty channels
+    h = header(96, 1.0, freqs[1], ims[1].bandwidth, (0.0, 0.0, 0.0))
+    fits.writeto(f"{prefix}-0001-image.fits", np.zeros((1, 1, 96, 96), np.float32), h, overwrite=True)
+    fits.writeto(f"{prefix}-0001-residual.fits", np.zeros((1, 1, 96, 96), np.float32), h, overwrite=True)
+    # band 2: all NaN, no beam keywords at all
+    h = header(96, 1.0, freqs[2], ims[2].bandwidth)
+    fits.writeto(f"{prefix}-0002-image.fits", np.full((1, 1, 96, 96), np.nan, np.float32), h, overwrite=True)
+    msgs = []
+    loaded = load_subband_images(prefix, log=msgs.append)
+    assert [round(im.freq) for im in loaded] == [round(freqs[0]), round(freqs[3])]
+    assert len(msgs) == 2 and "all zero" in msgs[0] and "all NaN" in msgs[1]
+
+
 def test_mask_model_fits(tmp_path):
     freqs = np.linspace(0.9e9, 1.6e9, 2)
     ims = make_subbands([], freqs, ra0=RA0, dec0=DEC0, npix=96, rms=1e-6)

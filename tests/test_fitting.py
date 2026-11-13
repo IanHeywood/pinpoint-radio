@@ -133,3 +133,43 @@ def test_to_source_round_trip():
     src = fit_region(ims, reg).to_source()
     assert src.name == "bright" and src.column == "DIR1_DATA"
     assert src.components[0].name == "bright_c0"
+
+
+def test_fully_flagged_subbands_are_skipped():
+    """Sub-bands that are all NaN, all zero, or have no valid noise/beam (fully flagged
+    channels) are left out with a reason, and the fit from the rest is unaffected."""
+    ra, dec = offset(0.37, -0.21)
+    ims = make_subbands([TrueComponent(ra, dec, spec)], FREQS, ra0=RA0, dec0=DEC0, npix=96, rms=1e-6)
+    ims[1].data = np.full_like(ims[1].data, np.nan)           # all NaN
+    ims[3].data = np.zeros_like(ims[3].data); ims[3].noise = 0.0  # all zero, noise 0 (as seen on real data)
+    ims[5].beam = (0.0, 0.0, 0.0)                              # no restoring beam
+    r = fit_region(ims, region(), opts=FitOptions(nterms=2, ref_freq=1.25e9))
+    assert len(r.skipped_bands) == 3 and len(r.freqs) == len(FREQS) - 3
+    reasons = " ".join(w for _, w in r.skipped_bands)
+    assert "NaN" in reasons and "zero" in reasons and "beam" in reasons
+    c = r.components[0]
+    assert max(map(abs, sep_arcsec(c, ra, dec))) < 1e-3
+    assert np.isclose(c.spectral.spectrum.coeffs[1], -0.7, atol=1e-3)
+
+
+def test_all_subbands_flagged_gives_clear_error():
+    ra, dec = offset(0.0, 0.0)
+    ims = make_subbands([TrueComponent(ra, dec, spec)], FREQS[:2], ra0=RA0, dec0=DEC0, npix=64, rms=1e-6)
+    for im in ims:
+        im.data = np.zeros_like(im.data)
+    with pytest.raises(ValueError, match="no usable sub-bands"):
+        fit_region(ims, region())
+
+
+def test_subband_problem_checks():
+    from pinpoint.images import subband_problem
+    good = np.ones((4, 4))
+    beam = (1e-5, 1e-5, 0.0)
+    assert subband_problem(good, 1e-3, beam) is None
+    assert "NaN" in subband_problem(np.full((4, 4), np.nan), 1e-3, beam)
+    assert "zero" in subband_problem(np.zeros((4, 4)), 1e-3, beam)
+    assert "noise" in subband_problem(good, 0.0, beam)
+    assert "noise" in subband_problem(good, float("nan"), beam)
+    assert "beam" in subband_problem(good, 1e-3, (0.0, 0.0, 0.0))
+    partly = good.copy(); partly[0] = np.nan
+    assert subband_problem(partly, 1e-3, beam) is None  # partial NaNs are fine (masked per pixel)

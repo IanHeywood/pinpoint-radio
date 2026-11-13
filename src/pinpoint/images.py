@@ -97,28 +97,61 @@ def find_subbands(prefix, kind="image"):
     return [f for f in files if _CHAN_RE.search(f)]
 
 
-def load_subband_images(prefix, use_residual_noise=True) -> list[SubbandImage]:
+def subband_problem(data, noise, beam):
+    """Why a sub-band can't be used (e.g. fully flagged), or None if it's fine."""
+    finite = np.isfinite(data)
+    if not finite.any():
+        return "image is all NaN (fully flagged?)"
+    if not np.any(data[finite] != 0):
+        return "image is all zero (fully flagged?)"
+    if noise is None or not np.isfinite(noise) or noise <= 0:
+        return "noise could not be estimated (residual all zero/NaN?)"
+    if not (np.all(np.isfinite(beam[:2])) and beam[0] > 0 and beam[1] > 0):
+        return "restoring beam missing or zero"
+    return None
+
+
+def _beam_from_header(h):
+    if all(k in h for k in ("BMAJ", "BMIN", "BPA")):
+        try:
+            return (float(h["BMAJ"]) * DEG, float(h["BMIN"]) * DEG, float(h["BPA"]) * DEG)
+        except (TypeError, ValueError):
+            pass
+    return (0.0, 0.0, 0.0)
+
+
+def load_subband_images(prefix, use_residual_noise=True, log=print) -> list[SubbandImage]:
+    """Read all usable sub-bands. Fully flagged ones (all-NaN or all-zero image, no valid
+    noise, or no restoring beam) are skipped with a message rather than stopping the run."""
     files = find_subbands(prefix, "image")
     if not files:
         raise FileNotFoundError(f"no wsclean sub-band images matching {prefix}-NNNN-image.fits")
     out = []
     ref = None
+    geom = None
     for f in files:
-        data, h, freq, bw, beam = read_fits_image(f)
+        data, h, freq, bw, _ = read_fits_image(f, need_beam=False)
+        beam = _beam_from_header(h)
+        noise = None
+        resid = f.replace("-image.fits", "-residual.fits")
+        if use_residual_noise and os.path.exists(resid):
+            rdata, *_ = read_fits_image(resid, need_beam=False)
+            noise = robust_rms(rdata)
+        if noise is None or not np.isfinite(noise) or noise <= 0:
+            noise = robust_rms(data) if np.isfinite(data).any() else float("nan")
+        problem = subband_problem(data, noise, beam)
+        if problem:
+            log(f"skipping {os.path.basename(f)} ({freq / 1e6:.2f} MHz): {problem}")
+            continue
         key = tuple(h.get(k) for k in ("NAXIS1", "NAXIS2", "CRVAL1", "CRVAL2", "CDELT1", "CDELT2", "CRPIX1", "CRPIX2"))
         if ref is None:
             ref = key
             geom = AstropyGeometry(h)
         elif key != ref:
             raise ValueError(f"{f}: pixel grid differs from first sub-band; all sub-bands must share one grid")
-        noise = None
-        resid = f.replace("-image.fits", "-residual.fits")
-        if use_residual_noise and os.path.exists(resid):
-            rdata, *_ = read_fits_image(resid, need_beam=False)
-            noise = robust_rms(rdata)
-        if noise is None:
-            noise = robust_rms(data)
         out.append(SubbandImage(data, freq, bw, beam, geom, noise, f))
+    if not out:
+        raise ValueError(f"all {len(files)} sub-band images matching {prefix} are unusable (fully flagged?)")
     return out
 
 

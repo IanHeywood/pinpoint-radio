@@ -24,7 +24,7 @@ def _cmd_fit(a):
     from .skymodel import SkyModel
 
     images = load_subband_images(a.images)
-    print(f"loaded {len(images)} sub-band images: "
+    print(f"using {len(images)} sub-band images: "
           f"{images[0].freq / 1e6:.2f}-{images[-1].freq / 1e6:.2f} MHz, noise "
           + ", ".join(f"{im.noise * 1e6:.1f}" for im in images) + " uJy/beam")
     sources, exclusions = load_regions(a.regions)

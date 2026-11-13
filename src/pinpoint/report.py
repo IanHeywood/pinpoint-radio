@@ -25,6 +25,8 @@ def sexagesimal(ra, dec, prec=5):
 def summarise(result) -> str:
     lines = [f"Source {result.name}  (column: {result.column or 'default'})  "
              f"pixels used: {result.npix}  reduced chi2: {result.chi2_red:.3f}  error scale: {result.error_scale:.2f}"]
+    for f, why in result.skipped_bands:
+        lines.append(f"  (sub-band at {f / 1e6:.2f} MHz left out: {why})")
     for i, c in enumerate(result.components):
         sp = c.spectral.spectrum
         lines.append(f"  [{i}] {c.type:5s} {sexagesimal(c.ra, c.dec)}   "
